@@ -1,12 +1,12 @@
-## Week03作业
+package main
 
-### 问题描述
->基于 errgroup 实现一个 http server 的启动和关闭 ，以及 linux signal 信号的注册和处理，要保证能够一个退出，全部注销退出
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"errGroup"
+)
 
-###Show You my code
-
-
-```
 func main(){
 	g,ctx := errGroup.WithContext(context.Background())
 	mux := http.NewServerMutex()
