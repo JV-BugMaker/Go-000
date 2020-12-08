@@ -7,6 +7,15 @@
 
 
 ```
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"errGroup"
+)
+
 func main(){
 	g,ctx := errGroup.WithContext(context.Background())
 	mux := http.NewServerMutex()
@@ -14,20 +23,37 @@ func main(){
 		fmt.Println("hello world")
 	})
 
-	server := &http.Server{
-		Addr : ":8080",
-		Handler:mux
+
+	g.Go(HttpServer(ctx,":8080",mux))
+	g.Go(HttpServer(ctx,":8081",mux))
+	g.Go(Signal(ctx))
+
+	if err := g.Wait();err != nil{
+
+		fmt.Println("something went wrong~")
 	}
+}
 
-	g.Go(server.ListenAndServer())
-
-	signs := make(chan os.Signal,1)
-	signal.Notify(signs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+func Signal(ctx context.Context) error{
+	sg := make(chan os.Signal,1)
+	signal.Notify(sg, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer signal.Stop(sg)
 	select{
-		case <- signs:
-			fmt.Println("http shutdown")
-			server.Shutdown(ctx)
+		case <- sg:
+			return errors.New("receive signal to stop")
+		case <- ctx.Done():
+			signal
+			return nil
 	}
+}
 
+
+func HttpServer(ctx context.Context,addr string,handler http.Handler )error{
+	server := &http.Server{
+		Addr : addr,
+		Handler: handler,
+	}
+	defer server.Shutdown(ctx)
+	return server.ListenAndServer()
 
 }
